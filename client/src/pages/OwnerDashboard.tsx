@@ -15,8 +15,16 @@ const OwnerDashboard: React.FC = () => {
 
   const pendingRequests = rechargeRequests.filter(r => r.status === 'pending');
   
-  // Get security events (last 200)
-  const allSecurityEvents = getSecurityEvents().slice(-200);
+  // Get security events
+  const [allSecurityEvents, setAllSecurityEvents] = React.useState<any[]>([]);
+  
+  React.useEffect(() => {
+    getSecurityEvents().then(events => {
+      if (Array.isArray(events)) {
+        setAllSecurityEvents(events.slice(-200));
+      }
+    });
+  }, [getSecurityEvents]);
   
   // Filter security events
   const filteredSecurityEvents = allSecurityEvents
