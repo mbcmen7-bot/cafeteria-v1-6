@@ -23,10 +23,9 @@ const OwnerDashboard: React.FC = () => {
       setIsEventsLoading(true);
       try {
         const events = await getSecurityEvents();
-        if (Array.isArray(events)) {
-          // Take the last 200 events
-          setAllSecurityEvents(events.slice(-200));
-        }
+        const eventsArray = Array.isArray(events) ? events : [];
+        // Take the last 200 events
+        setAllSecurityEvents(eventsArray.slice(-200));
       } catch (error) {
         console.error("Failed to fetch security events:", error);
         toast.error("Failed to load security events log");

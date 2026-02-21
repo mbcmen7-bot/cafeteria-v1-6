@@ -91,11 +91,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast.error("Error logging out: " + error.message);
-    } else {
+    try {
+      await supabase.auth.signOut();
+      setAuthToken(null);
+      setUserId(null);
+      setUserEmail(null);
+      setRole(null);
+      setProfile(null);
       toast.success("Logged out successfully");
+      window.location.href = "/";
+    } catch (error: any) {
+      console.error("Logout error:", error);
+      toast.error("Error logging out: " + (error.message || "Unknown error"));
     }
   };
 
