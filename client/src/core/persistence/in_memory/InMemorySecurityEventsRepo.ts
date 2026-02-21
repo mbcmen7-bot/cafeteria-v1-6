@@ -10,7 +10,7 @@ export class InMemorySecurityEventsRepo implements ISecurityEventsRepo {
   private readonly maxEvents = 1000;
 
   constructor(initialEvents: SecurityEvent[] = []) {
-    this.securityEvents = initialEvents;
+    this.securityEvents = Array.isArray(initialEvents) ? initialEvents : [];
   }
 
   async log(event: SecurityEvent): Promise<void> {
@@ -36,6 +36,6 @@ export class InMemorySecurityEventsRepo implements ISecurityEventsRepo {
   }
 
   _setBackingStore(events: SecurityEvent[]): void {
-    this.securityEvents = events;
+    this.securityEvents = Array.isArray(events) ? events : [];
   }
 }

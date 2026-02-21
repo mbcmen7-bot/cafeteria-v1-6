@@ -142,7 +142,7 @@ const WaiterBoard: React.FC = () => {
           filteredOrders.map(order => (
             <Card key={order.id}>
               <CardHeader>
-                <CardTitle className="text-sm">Order #{order.id.slice(-5)}</CardTitle>
+                <CardTitle className="text-sm">Order #{(order.id || "").slice(-5)}</CardTitle>
                 {order.table_code && (
                   <div className="text-xs text-muted-foreground space-y-1 mt-2">
                     <p className="font-mono font-bold text-primary">Table: {order.table_code}</p>

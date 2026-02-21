@@ -106,7 +106,7 @@ const MarketerDashboard: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {commissionHistory.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 20).map(entry => (
+              {(Array.isArray(commissionHistory) ? commissionHistory : []).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 20).map(entry => (
                 <div key={entry.id} className="border rounded-lg p-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-2">
                   <div>
                     <p className="font-semibold text-sm">{entry.description}</p>
@@ -114,7 +114,7 @@ const MarketerDashboard: React.FC = () => {
                       {new Date(entry.timestamp).toLocaleString()}
                     </p>
                     {entry.orderId && (
-                      <p className="text-[10px] text-muted-foreground">Order: {entry.orderId.slice(-8)}</p>
+                      <p className="text-[10px] text-muted-foreground">Order: {(entry.orderId || "").slice(-8)}</p>
                     )}
                   </div>
                   <div className="text-right">
@@ -154,7 +154,7 @@ const MarketerDashboard: React.FC = () => {
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-bold text-destructive">-{payout.amount.toLocaleString()} pts</p>
-                    <p className="text-[10px] text-muted-foreground">ID: {payout.id.slice(-8)}</p>
+                    <p className="text-[10px] text-muted-foreground">ID: {(payout.id || "").slice(-8)}</p>
                   </div>
                 </div>
               ))}

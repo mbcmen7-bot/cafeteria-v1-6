@@ -120,7 +120,7 @@ const OrderStatusPage: React.FC = () => {
       <main className="container py-6 flex-1">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-2xl font-bold">Order #{order.id.slice(-5)}</CardTitle>
+            <CardTitle className="text-2xl font-bold">Order #{(order.id || "").slice(-5)}</CardTitle>
             {getStatusIcon(order.status)}
           </CardHeader>
           <CardContent>

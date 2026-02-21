@@ -208,7 +208,7 @@ const PayoutManagement: React.FC = () => {
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-bold text-destructive">-{record.amount.toLocaleString()} pts</p>
-                    <p className="text-[10px] text-muted-foreground">ID: {record.id.slice(-8)}</p>
+                    <p className="text-[10px] text-muted-foreground">ID: {(record.id || "").slice(-8)}</p>
                   </div>
                 </div>
               ))}

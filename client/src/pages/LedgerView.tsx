@@ -44,7 +44,7 @@ const LedgerView: React.FC = () => {
                     </span>
                   </TableCell>
                   <TableCell>${entry.amount.toFixed(2)}</TableCell>
-                  <TableCell className="text-xs font-mono">{entry.orderId?.slice(-8) || 'N/A'}</TableCell>
+                  <TableCell className="text-xs font-mono">{(entry.orderId || "").slice(-8) || 'N/A'}</TableCell>
                   <TableCell className="text-xs">{entry.cafeteriaId || entry.marketerId || 'System'}</TableCell>
                 </TableRow>
               ))}
