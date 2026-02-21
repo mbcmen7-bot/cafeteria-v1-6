@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useMockState } from "@/contexts/MockStateContext";
+import { useMockState, SecurityEvent } from "@/contexts/MockStateContext";
 import { useLocation } from "wouter";
-import { ArrowLeft, CheckCircle2, XCircle, Eye, ShieldCheck, Wallet, Clock, AlertTriangle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, XCircle, Eye, ShieldCheck, Wallet, Clock, AlertTriangle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 const OwnerDashboard: React.FC = () => {
@@ -12,19 +12,33 @@ const OwnerDashboard: React.FC = () => {
   const [showSecurityEvents, setShowSecurityEvents] = useState(false);
   const [filterBlockedOnly, setFilterBlockedOnly] = useState(true);
   const [filterByRole, setFilterByRole] = useState<string>('all');
+  
+  // State for security events
+  const [allSecurityEvents, setAllSecurityEvents] = useState<SecurityEvent[]>([]);
+  const [isEventsLoading, setIsEventsLoading] = useState(false);
+
+  // Load security events asynchronously
+  useEffect(() => {
+    const fetchEvents = async () => {
+      setIsEventsLoading(true);
+      try {
+        const events = await getSecurityEvents();
+        if (Array.isArray(events)) {
+          // Take the last 200 events
+          setAllSecurityEvents(events.slice(-200));
+        }
+      } catch (error) {
+        console.error("Failed to fetch security events:", error);
+        toast.error("Failed to load security events log");
+      } finally {
+        setIsEventsLoading(false);
+      }
+    };
+
+    fetchEvents();
+  }, [getSecurityEvents]);
 
   const pendingRequests = rechargeRequests.filter(r => r.status === 'pending');
-  
-  // Get security events
-  const [allSecurityEvents, setAllSecurityEvents] = React.useState<any[]>([]);
-  
-  React.useEffect(() => {
-    getSecurityEvents().then(events => {
-      if (Array.isArray(events)) {
-        setAllSecurityEvents(events.slice(-200));
-      }
-    });
-  }, [getSecurityEvents]);
   
   // Filter security events
   const filteredSecurityEvents = allSecurityEvents
@@ -197,7 +211,12 @@ const OwnerDashboard: React.FC = () => {
 
                 {/* Events List */}
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {filteredSecurityEvents.length === 0 ? (
+                  {isEventsLoading ? (
+                    <div className="py-10 flex flex-col items-center justify-center text-muted-foreground gap-2">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                      <p className="text-sm">Loading security events...</p>
+                    </div>
+                  ) : filteredSecurityEvents.length === 0 ? (
                     <div className="py-6 text-center text-muted-foreground italic">
                       No security events to display
                     </div>
