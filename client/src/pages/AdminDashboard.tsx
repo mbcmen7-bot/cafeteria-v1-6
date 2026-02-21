@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useMockState } from "@/contexts/MockStateContext";
+import { useMockState, CommissionConfig } from "@/contexts/MockStateContext";
 import { useLocation } from "wouter";
-import { ArrowLeft, Plus, Copy, Check, Settings2, Wallet, Upload, Clock, AlertTriangle, Table, RotateCcw } from "lucide-react";
+import { ArrowLeft, Plus, Copy, Check, Settings2, Wallet, Upload, Clock, AlertTriangle, Table, RotateCcw, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 const AdminDashboard: React.FC = () => {
@@ -16,6 +16,7 @@ const AdminDashboard: React.FC = () => {
     ledgerEntries, 
     addMenuCategory,
     commissionConfig,
+    getCommissionConfig,
     updateCommissionConfig,
     rechargeRequests,
     createRechargeRequest,
@@ -43,7 +44,24 @@ const AdminDashboard: React.FC = () => {
   const [proofUrl, setProofUrl] = useState("");
 
   // Commission Settings State
-  const [editConfig, setEditConfig] = useState(commissionConfig);
+  const [editConfig, setEditConfig] = useState<CommissionConfig | null>(null);
+  const [isConfigLoading, setIsConfigLoading] = useState(false);
+
+  // Load commission config asynchronously
+  useEffect(() => {
+    const fetchConfig = async () => {
+      setIsConfigLoading(true);
+      try {
+        const config = await getCommissionConfig();
+        setEditConfig(config);
+      } catch (error) {
+        console.error("Failed to fetch commission config:", error);
+      } finally {
+        setIsConfigLoading(false);
+      }
+    };
+    fetchConfig();
+  }, [getCommissionConfig]);
 
   // Waiter Sections State
   const [newSectionName, setNewSectionName] = useState("");
@@ -176,6 +194,8 @@ const AdminDashboard: React.FC = () => {
   };
 
   const handleSaveCommissionConfig = () => {
+    if (!editConfig) return;
+
     const total = Number(editConfig.rate_direct_parent_percent) + 
                   Number(editConfig.rate_grandparent_percent) + 
                   Number(editConfig.rate_owner_percent);
@@ -209,7 +229,24 @@ const AdminDashboard: React.FC = () => {
     toast.success("Recharge request submitted for approval");
   };
 
-  const cafeTables = getWaiterTables(selectedCafe);
+  // We need to handle the fact that getWaiterTables might be async in Supabase
+  // For now, let's keep it as is if it's not causing a crash, but in Supabase mode it likely returns a promise.
+  // Actually, in shared_mock_state.ts, getWaiterTables is async.
+  // This is likely another bug.
+  
+  const [cafeTables, setCafeTables] = useState<any[]>([]);
+  useEffect(() => {
+    const fetchTables = async () => {
+      try {
+        const tables = await getWaiterTables(selectedCafe);
+        setCafeTables(tables);
+      } catch (error) {
+        console.error("Failed to fetch tables:", error);
+      }
+    };
+    fetchTables();
+  }, [getWaiterTables, selectedCafe]);
+
   const cafeSections = waiterSections.filter(s => s.cafeteriaId === selectedCafe);
 
   return (
@@ -281,223 +318,134 @@ const AdminDashboard: React.FC = () => {
             <CardTitle className="text-sm font-medium">Total Commissions</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalCommissions.toLocaleString()} pts</div>
+            <div className="text-2xl font-bold">${totalCommissions.toFixed(2)}</div>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recharge Section */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5 text-primary" />
-              Recharge Points
+            <CardTitle className="flex items-center justify-between">
+              Commission & Payout Settings
+              <Settings2 className="h-5 w-5 text-muted-foreground" />
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Points Amount</Label>
-                  <Input 
-                    type="number" 
-                    placeholder="e.g. 50000" 
-                    value={rechargeAmount}
-                    onChange={(e) => setRechargeAmount(e.target.value)}
-                  />
-                  <p className="text-[10px] text-muted-foreground italic">50,000 pts ≈ $150.00 USD</p>
+            <div className="space-y-6">
+              {isConfigLoading ? (
+                <div className="py-10 flex flex-col items-center justify-center text-muted-foreground gap-2">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                  <p className="text-sm">Loading configuration...</p>
                 </div>
-                <div className="space-y-2">
-                  <Label>Proof of Payment (Image URL)</Label>
-                  <div className="flex gap-2">
+              ) : editConfig ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Direct Parent (%)</Label>
                     <Input 
-                      placeholder="https://example.com/proof.jpg" 
+                      type="number" 
+                      value={editConfig.rate_direct_parent_percent}
+                      onChange={(e) => setEditConfig({...editConfig, rate_direct_parent_percent: Number(e.target.value)})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Grandparent (%)</Label>
+                    <Input 
+                      type="number" 
+                      value={editConfig.rate_grandparent_percent}
+                      onChange={(e) => setEditConfig({...editConfig, rate_grandparent_percent: Number(e.target.value)})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>System Owner (%)</Label>
+                    <Input 
+                      type="number" 
+                      value={editConfig.rate_owner_percent}
+                      onChange={(e) => setEditConfig({...editConfig, rate_owner_percent: Number(e.target.value)})}
+                    />
+                  </div>
+                  <div className="md:col-span-3">
+                    <Button className="w-full" onClick={handleSaveCommissionConfig}>Save Configuration</Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">Configuration unavailable</p>
+              )}
+
+              <div className="pt-6 border-t">
+                <h3 className="font-semibold mb-4 flex items-center gap-2">
+                  <Wallet className="h-4 w-4" />
+                  Recharge Point Balance
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Amount (Points)</Label>
+                    <Input 
+                      type="number" 
+                      placeholder="e.g. 50000" 
+                      value={rechargeAmount}
+                      onChange={(e) => setRechargeAmount(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Proof Image URL (Mock)</Label>
+                    <Input 
+                      placeholder="https://..." 
                       value={proofUrl}
                       onChange={(e) => setProofUrl(e.target.value)}
                     />
-                    <Button size="icon" variant="outline" onClick={() => setProofUrl("https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400")}>
-                      <Upload className="h-4 w-4" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Button variant="outline" className="w-full" onClick={handleRechargeRequest}>
+                      <Upload className="h-4 w-4 mr-2" /> Submit Recharge Request
                     </Button>
                   </div>
                 </div>
-                <Button className="w-full" onClick={handleRechargeRequest}>Submit Recharge Request</Button>
-              </div>
-
-              <div className="space-y-4">
-                <Label className="flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  Recent Requests
-                </Label>
-                <div className="border rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted">
-                      <tr>
-                        <th className="p-2 text-left font-medium">Amount</th>
-                        <th className="p-2 text-left font-medium">Status</th>
-                        <th className="p-2 text-left font-medium">Date</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {rechargeRequests.filter(r => r.cafeteriaId === selectedCafe).slice(0, 5).map(req => (
-                        <tr key={req.id}>
-                          <td className="p-2">{req.amount.toLocaleString()}</td>
-                          <td className="p-2">
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold ${
-                              req.status === 'approved' ? 'bg-green-100 text-green-700' : 
-                              req.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
-                            }`}>
-                              {req.status}
-                            </span>
-                          </td>
-                          <td className="p-2 text-xs text-muted-foreground">
-                            {new Date(req.createdAt).toLocaleDateString()}
-                          </td>
-                        </tr>
-                      ))}
-                      {rechargeRequests.filter(r => r.cafeteriaId === selectedCafe).length === 0 && (
-                        <tr>
-                          <td colSpan={3} className="p-4 text-center text-muted-foreground italic">No requests found</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Commission Settings Section */}
-        <Card className="border-primary/50">
+        <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <Settings2 className="h-4 w-4 text-primary" />
-              Commission Config (Owner)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-1">
-              <Label className="text-xs">Direct Parent (%)</Label>
-              <Input 
-                type="number" 
-                className="h-8 text-sm"
-                value={editConfig.rate_direct_parent_percent}
-                onChange={(e) => setEditConfig({...editConfig, rate_direct_parent_percent: Number(e.target.value)})}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Grandparent (%)</Label>
-              <Input 
-                type="number" 
-                className="h-8 text-sm"
-                value={editConfig.rate_grandparent_percent}
-                onChange={(e) => setEditConfig({...editConfig, rate_grandparent_percent: Number(e.target.value)})}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Owner (%)</Label>
-              <Input 
-                type="number" 
-                className="h-8 text-sm"
-                value={editConfig.rate_owner_percent}
-                onChange={(e) => setEditConfig({...editConfig, rate_owner_percent: Number(e.target.value)})}
-              />
-            </div>
-            <div className="pt-2">
-              <p className="text-[10px] text-muted-foreground mb-2">
-                Total: {Number(editConfig.rate_direct_parent_percent) + Number(editConfig.rate_grandparent_percent) + Number(editConfig.rate_owner_percent)}%
-              </p>
-              <Button size="sm" className="w-full" onClick={handleSaveCommissionConfig}>Save Config</Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Table Management Section */}
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Table className="h-5 w-5 text-primary" />
-              Table Management
+            <CardTitle className="flex items-center justify-between">
+              QR Code Management
+              <Table className="h-5 w-5 text-muted-foreground" />
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Create New Table */}
-              <div className="space-y-4">
-                <h3 className="font-semibold text-sm">Create New Table</h3>
-                <div className="space-y-3">
-                  <div>
-                    <Label className="text-xs">Table Number</Label>
-                    <Input 
-                      placeholder="e.g., A-01" 
-                      value={newTableNumber}
-                      onChange={(e) => setNewTableNumber(e.target.value)}
-                      className="h-9"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Section</Label>
-                    <select 
-                      className="w-full bg-background border rounded p-2 h-9 text-sm"
-                      value={newTableSection}
-                      onChange={(e) => setNewTableSection(e.target.value)}
-                    >
-                      <option value="">Select Section</option>
-                      {cafeSections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <Label className="text-xs">Capacity</Label>
-                    <Input 
-                      type="number" 
-                      placeholder="e.g., 4" 
-                      value={newTableCapacity}
-                      onChange={(e) => setNewTableCapacity(e.target.value)}
-                      className="h-9"
-                    />
-                  </div>
-                  <Button className="w-full" onClick={handleAddTable}>
-                    <Plus className="h-4 w-4 mr-2" /> Create Table
-                  </Button>
-                </div>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Select Cafeteria</Label>
+                <select 
+                  className="w-full p-2 border rounded-md bg-background"
+                  value={selectedCafe}
+                  onChange={(e) => setSelectedCafe(e.target.value)}
+                >
+                  {cafeterias.map(cafe => (
+                    <option key={cafe.id} value={cafe.id}>{cafe.name}</option>
+                  ))}
+                </select>
               </div>
 
-              {/* Existing Tables with QR Payload */}
-              <div className="space-y-4">
-                <h3 className="font-semibold text-sm">Existing Tables</h3>
-                <div className="space-y-2 max-h-96 overflow-y-auto">
+              <div className="pt-4">
+                <h4 className="text-sm font-semibold mb-2">Active Tables ({cafeTables.length})</h4>
+                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
                   {cafeTables.length === 0 ? (
-                    <p className="text-xs text-muted-foreground italic">No tables created yet</p>
+                    <p className="text-xs text-muted-foreground italic">No tables found</p>
                   ) : (
                     cafeTables.map(table => (
-                      <div key={table.id} className="p-3 border rounded-lg space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-semibold text-sm">{table.tableNumber}</p>
-                            <p className="text-xs text-muted-foreground">Capacity: {table.capacity}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xs font-mono font-bold text-primary">{table.referenceCode}</p>
-                            <p className="text-[10px] text-muted-foreground">Reference Code</p>
-                          </div>
+                      <div key={table.id} className="p-2 border rounded text-xs flex items-center justify-between bg-muted/30">
+                        <div>
+                          <p className="font-bold">Table {table.tableNumber}</p>
+                          <p className="text-[10px] text-muted-foreground">Code: {table.referenceCode}</p>
                         </div>
-                        <div className="flex gap-2">
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="flex-1"
-                            onClick={() => copyQRPayload(table)}
-                          >
-                            <Copy className="h-3 w-3 mr-1" /> JSON
+                        <div className="flex gap-1">
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => copyQRLink(table)} title="Copy QR Link">
+                            <Plus className="h-3 w-3" />
                           </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="flex-1"
-                            onClick={() => copyQRLink(table)}
-                          >
-                            <Copy className="h-3 w-3 mr-1" /> Link
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => copyQRPayload(table)} title="Copy QR Payload">
+                            <Copy className="h-3 w-3" />
                           </Button>
                         </div>
                       </div>
